@@ -9,11 +9,6 @@
 </head>
 <body>
   <div class="container">
-    <header>
-      <h1>📚 Library Helper</h1>
-      <p class="subtitle">Scan employee badge, then scan book code</p>
-    </header>
-
     <main>
       <!-- Scanner Section -->
       <div class="scanner-section">
@@ -25,37 +20,14 @@
         <div id="scanStatus" class="status-message"></div>
       </div>
 
-      <!-- Recent Scans Section -->
+      <!-- Active Checkouts Section -->
       <div class="scans-section">
-        <h2>Recent Scans</h2>
+        <h2>Currently Checked Out</h2>
         <div id="scansList" class="scans-list">
-          <p class="empty-state">No items scanned yet</p>
+          <p class="empty-state">No books currently checked out</p>
         </div>
       </div>
     </main>
-  </div>
-
-  <!-- Confirmation Modal -->
-  <div id="confirmModal" class="modal">
-    <div class="modal-content">
-      <h2>Add to Database?</h2>
-      <div class="barcode-display">
-        <strong>Employee Badge:</strong>
-        <span id="modalEmployeeBadge"></span>
-      </div>
-      <div class="barcode-display">
-        <strong>Book Code:</strong>
-        <span id="modalBarcode"></span>
-      </div>
-      <div class="form-group">
-        <label for="notesInput">Notes (optional):</label>
-        <textarea id="notesInput" rows="3" placeholder="Add any notes about this item..."></textarea>
-      </div>
-      <div class="modal-actions">
-        <button id="confirmYes" class="btn btn-success">Yes, Add It</button>
-        <button id="confirmNo" class="btn btn-danger">No, Cancel</button>
-      </div>
-    </div>
   </div>
 
   <script src="app.js"></script>

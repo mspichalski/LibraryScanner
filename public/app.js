@@ -1,29 +1,22 @@
 let html5QrcodeScanner = null;
 let isScanning = false;
-let lastScannedBarcode = null;
-let scanningStep = 'employee'; // 'employee' or 'book'
-let employeeBadge = null;
+let lastScannedCode = null;
+let scanningStep = 'book'; // 'book' or 'badge'
+let currentBook = null;
 
 // DOM Elements
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
 const scanStatus = document.getElementById('scanStatus');
 const scansList = document.getElementById('scansList');
-const confirmModal = document.getElementById('confirmModal');
-const modalBarcode = document.getElementById('modalBarcode');
-const notesInput = document.getElementById('notesInput');
-const confirmYes = document.getElementById('confirmYes');
-const confirmNo = document.getElementById('confirmNo');
 
 // Event Listeners
 startBtn.addEventListener('click', startScanner);
 stopBtn.addEventListener('click', stopScanner);
-confirmYes.addEventListener('click', addBarcodeToDatabase);
-confirmNo.addEventListener('click', closeModal);
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
-  loadRecentScans();
+  loadActiveCheckouts();
   checkCameraSupport();
 });
 
@@ -49,7 +42,6 @@ function checkCameraSupport() {
     );
   }
   
-  // Check if getUserMedia is available
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
     const warning = document.createElement('div');
     warning.className = 'status-message error';
@@ -69,19 +61,13 @@ function checkCameraSupport() {
 // Start the barcode scanner
 async function startScanner() {
   try {
-    // Check if we're on HTTPS or localhost
     const isSecureContext = window.isSecureContext;
     const isLocalhost = window.location.hostname === 'localhost' || 
                        window.location.hostname === '127.0.0.1';
     
     if (!isSecureContext && !isLocalhost) {
-      showStatus('⚠️ Camera requires HTTPS! Please see console for instructions.', 'error');
+      showStatus('⚠️ Camera requires HTTPS!', 'error');
       console.error('🔒 HTTPS Required for Camera Access');
-      console.log('📱 Solutions:');
-      console.log('1. Access via localhost on the same device');
-      console.log('2. Use HTTPS (see server.js for setup)');
-      console.log('3. For testing, use Chrome with flag: chrome://flags/#unsafely-treat-insecure-origin-as-secure');
-      console.log('   Add your server IP to the list');
       startBtn.style.display = 'inline-block';
       stopBtn.style.display = 'none';
       return;
@@ -108,9 +94,9 @@ async function startScanner() {
     );
     
     isScanning = true;
-    const stepMessage = scanningStep === 'employee' 
-      ? '✓ Scanner started. Please scan EMPLOYEE BADGE.' 
-      : '✓ Scanner started. Please scan BOOK CODE.';
+    const stepMessage = scanningStep === 'book' 
+      ? '✓ Scanner started. Please scan BOOK CODE.' 
+      : '✓ Scanner started. Please scan USER BADGE.';
     showStatus(stepMessage, 'info');
   } catch (err) {
     console.error('Error starting scanner:', err);
@@ -144,11 +130,10 @@ async function stopScanner(resetState = true) {
       html5QrcodeScanner = null;
       isScanning = false;
       
-      // Only reset scanning state if explicitly requested (e.g., manual stop)
       if (resetState) {
-        scanningStep = 'employee';
-        employeeBadge = null;
-        lastScannedBarcode = null;
+        scanningStep = 'book';
+        currentBook = null;
+        lastScannedCode = null;
       }
       
       startBtn.style.display = 'inline-block';
@@ -164,46 +149,113 @@ async function stopScanner(resetState = true) {
 }
 
 // Handle successful scan
-function onScanSuccess(decodedText, decodedResult) {
+async function onScanSuccess(decodedText, decodedResult) {
   // Prevent duplicate rapid scans
-  if (decodedText === lastScannedBarcode) {
+  if (decodedText === lastScannedCode) {
     return;
   }
   
-  lastScannedBarcode = decodedText;
+  lastScannedCode = decodedText;
   
-  if (scanningStep === 'employee') {
-    // First step: Employee badge scanned
-    employeeBadge = decodedText;
+  if (scanningStep === 'book') {
+    // First step: Book code scanned
     playBeep();
     
-    // Stop scanner temporarily (without resetting state)
+    // Stop scanner temporarily
     if (isScanning) {
-      stopScanner(false);
+      await stopScanner(false);
     }
     
-    showStatus(`✓ Employee badge scanned: ${decodedText}`, 'success');
+    showStatus(`Checking book ${decodedText}...`, 'info');
     
-    // Move to next step
-    scanningStep = 'book';
-    
-    // Auto-restart scanner for book code after a short delay
-    setTimeout(() => {
-      lastScannedBarcode = null;
-      startScanner();
-    }, 1500);
+    // Check if book exists and get its status
+    try {
+      const response = await fetch(`/api/books/code/${encodeURIComponent(decodedText)}`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        currentBook = data.book;
+        
+        if (currentBook.status === 'available') {
+          // Book is available - ask to scan badge for checkout
+          showStatus(`✓ Book "${currentBook.title}" is AVAILABLE. Scan user badge to check out.`, 'success');
+          scanningStep = 'badge';
+          
+          setTimeout(() => {
+            lastScannedCode = null;
+            startScanner();
+          }, 2000);
+        } else {
+          // Book is checked out - ask to scan badge for return
+          showStatus(`⚠️ Book "${currentBook.title}" is CHECKED OUT to ${currentBook.checked_out_to}. Scan badge to return.`, 'warning');
+          scanningStep = 'badge';
+          
+          setTimeout(() => {
+            lastScannedCode = null;
+            startScanner();
+          }, 2000);
+        }
+      } else {
+        showStatus(`❌ Book not found: ${decodedText}`, 'error');
+        setTimeout(() => {
+          lastScannedCode = null;
+          startScanner();
+        }, 2000);
+      }
+    } catch (err) {
+      console.error('Error checking book:', err);
+      showStatus('Error connecting to server', 'error');
+      setTimeout(() => {
+        lastScannedCode = null;
+        startScanner();
+      }, 2000);
+    }
     
   } else {
-    // Second step: Book code scanned
+    // Second step: Badge scanned
     playBeep();
     
-    // Stop scanner temporarily to show modal (without resetting state yet)
+    // Stop scanner
     if (isScanning) {
-      stopScanner(false);
+      await stopScanner(false);
     }
     
-    // Show confirmation modal with both values
-    showConfirmationModal(employeeBadge, decodedText);
+    const userCode = decodedText;
+    showStatus(`Checking user ${userCode}...`, 'info');
+    
+    // Verify user exists
+    try {
+      const response = await fetch(`/api/users/code/${encodeURIComponent(userCode)}`);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        showStatus(`❌ User not found: ${userCode}`, 'error');
+        resetToBookScan();
+        return;
+      }
+      
+      const user = data.user;
+      
+      if (currentBook.status === 'available') {
+        // Checkout the book
+        await checkoutBook(currentBook.code, userCode, user.name);
+      } else {
+        // Try to return the book
+        if (currentBook.checked_out_to_code === userCode) {
+          // Correct user - return the book
+          await returnBook(currentBook.code, user.name);
+        } else {
+          // Wrong user
+          showStatus(`❌ WARNING: Book is checked out to ${currentBook.checked_out_to}, not ${user.name}!`, 'error');
+          resetToBookScan();
+        }
+      }
+      
+    } catch (err) {
+      console.error('Error checking user:', err);
+      showStatus('Error connecting to server', 'error');
+      resetToBookScan();
+    }
   }
 }
 
@@ -212,114 +264,104 @@ function onScanError(errorMessage) {
   // Ignore common scanning errors
 }
 
-// Show confirmation modal
-function showConfirmationModal(employeeBadgeValue, bookCode) {
-  document.getElementById('modalEmployeeBadge').textContent = employeeBadgeValue;
-  document.getElementById('modalBarcode').textContent = bookCode;
-  notesInput.value = '';
-  confirmModal.classList.add('show');
-}
-
-// Close modal
-function closeModal() {
-  confirmModal.classList.remove('show');
-  lastScannedBarcode = null;
-  
-  // Reset to first step
-  scanningStep = 'employee';
-  employeeBadge = null;
-  
-  showStatus('Scan cancelled. Ready to scan employee badge.', 'info');
-}
-
-// Add barcode to database
-async function addBarcodeToDatabase() {
-  const employee_badge = document.getElementById('modalEmployeeBadge').textContent;
-  const barcode = document.getElementById('modalBarcode').textContent;
-  const notes = notesInput.value.trim();
-  
+// Checkout a book
+async function checkoutBook(bookCode, userCode, userName) {
   try {
-    const response = await fetch('/api/barcodes', {
+    const response = await fetch('/api/checkouts', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ employee_badge, barcode, notes })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ book_code: bookCode, user_code: userCode, due_days: 14 })
     });
     
     const data = await response.json();
     
     if (response.ok) {
-      showStatus(`✓ Book ${barcode} added for employee ${employee_badge}!`, 'success');
-      loadRecentScans();
-      closeModal();
+      showStatus(`✓ SUCCESS: "${currentBook.title}" checked out to ${userName}!`, 'success');
+      loadActiveCheckouts();
+      resetToBookScan();
     } else {
-      showStatus(`Error: ${data.error}`, 'error');
+      showStatus(`❌ Error: ${data.error}`, 'error');
+      resetToBookScan();
     }
   } catch (err) {
-    console.error('Error adding barcode:', err);
-    showStatus('Error connecting to server.', 'error');
+    console.error('Error checking out book:', err);
+    showStatus('Error connecting to server', 'error');
+    resetToBookScan();
   }
-  
-  // Reset for next scan
-  scanningStep = 'employee';
-  employeeBadge = null;
-  lastScannedBarcode = null;
 }
 
-// Load recent scans from database
-async function loadRecentScans() {
+// Return a book
+async function returnBook(bookCode, userName) {
   try {
-    const response = await fetch('/api/barcodes');
+    const response = await fetch('/api/checkouts/return', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ book_code: bookCode })
+    });
+    
     const data = await response.json();
     
-    if (data.barcodes && data.barcodes.length > 0) {
-      displayScans(data.barcodes);
+    if (response.ok) {
+      showStatus(`✓ SUCCESS: "${currentBook.title}" returned by ${userName}!`, 'success');
+      loadActiveCheckouts();
+      resetToBookScan();
     } else {
-      scansList.innerHTML = '<p class="empty-state">No items scanned yet</p>';
+      showStatus(`❌ Error: ${data.error}`, 'error');
+      resetToBookScan();
     }
   } catch (err) {
-    console.error('Error loading scans:', err);
-    scansList.innerHTML = '<p class="empty-state">Error loading scans</p>';
+    console.error('Error returning book:', err);
+    showStatus('Error connecting to server', 'error');
+    resetToBookScan();
   }
 }
 
-// Display scans in the list
-function displayScans(barcodes) {
-  scansList.innerHTML = barcodes.map(item => `
-    <div class="scan-item">
-      <div class="scan-info">
-        <div class="scan-barcode"><strong>Employee:</strong> ${item.employee_badge}</div>
-        <div class="scan-barcode"><strong>Book:</strong> ${item.barcode}</div>
-        <div class="scan-time">${formatDate(item.scanned_at)}</div>
-        ${item.notes ? `<div class="scan-notes">${item.notes}</div>` : ''}
+// Reset to book scanning
+function resetToBookScan() {
+  setTimeout(() => {
+    scanningStep = 'book';
+    currentBook = null;
+    lastScannedCode = null;
+    startScanner();
+  }, 3000);
+}
+
+// Load active checkouts from database
+async function loadActiveCheckouts() {
+  try {
+    const response = await fetch('/api/checkouts/active');
+    const data = await response.json();
+    
+    if (data.checkouts && data.checkouts.length > 0) {
+      displayCheckouts(data.checkouts);
+    } else {
+      scansList.innerHTML = '<p class="empty-state">No books currently checked out</p>';
+    }
+  } catch (err) {
+    console.error('Error loading checkouts:', err);
+    scansList.innerHTML = '<p class="empty-state">Error loading checkouts</p>';
+  }
+}
+
+// Display checkouts in the list
+function displayCheckouts(checkouts) {
+  scansList.innerHTML = checkouts.map(item => {
+    const dueDate = new Date(item.due_date);
+    const isOverdue = dueDate < new Date();
+    
+    return `
+      <div class="scan-item">
+        <div class="scan-info">
+          <div class="scan-barcode"><strong>Book:</strong> ${item.title} by ${item.author}</div>
+          <div class="scan-barcode"><strong>Code:</strong> ${item.book_code}</div>
+          <div class="scan-barcode"><strong>User:</strong> ${item.user_name} (${item.user_code})</div>
+          <div class="scan-time ${isOverdue ? 'overdue' : ''}">
+            <strong>Due:</strong> ${formatDate(item.due_date)} ${isOverdue ? '(OVERDUE)' : ''}
+          </div>
+        </div>
       </div>
-      <button class="delete-btn" onclick="deleteBarcode(${item.id})">Delete</button>
-    </div>
-  `).join('');
-}
-
-// Delete barcode from database
-async function deleteBarcode(id) {
-  if (!confirm('Are you sure you want to delete this item?')) {
-    return;
-  }
-  
-  try {
-    const response = await fetch(`/api/barcodes/${id}`, {
-      method: 'DELETE'
-    });
-    
-    if (response.ok) {
-      showStatus('Item deleted successfully.', 'success');
-      loadRecentScans();
-    } else {
-      showStatus('Error deleting item.', 'error');
-    }
-  } catch (err) {
-    console.error('Error deleting barcode:', err);
-    showStatus('Error connecting to server.', 'error');
-  }
+    `;
+  }).join('');
 }
 
 // Show status message
@@ -327,10 +369,6 @@ function showStatus(message, type) {
   scanStatus.textContent = message;
   scanStatus.className = `status-message ${type}`;
   scanStatus.style.display = 'block';
-  
-  setTimeout(() => {
-    scanStatus.style.display = 'none';
-  }, 5000);
 }
 
 // Format date for display
@@ -367,4 +405,3 @@ function playBeep() {
     // Beep not critical - ignore errors
   }
 }
-

@@ -14,101 +14,220 @@ const HTTPS_PORT = process.env.HTTPS_PORT || 3443;
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
-// Initialize SQLite database
-const db = new sqlite3.Database('./library.db', (err) => {
+// Initialize SQLite database - using shared database with LibraryManager
+const dbPath = path.join(__dirname, '../LibraryManager/library.db');
+const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error('Error opening database:', err.message);
   } else {
-    console.log('Connected to the SQLite database.');
-    initDatabase();
+    console.log('Connected to the shared library database.');
+    console.log(`Database location: ${dbPath}`);
   }
 });
-
-// Create tables if they don't exist
-function initDatabase() {
-  db.run(`
-    CREATE TABLE IF NOT EXISTS barcodes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      employee_badge TEXT NOT NULL,
-      barcode TEXT NOT NULL,
-      scanned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      notes TEXT
-    )
-  `, (err) => {
-    if (err) {
-      console.error('Error creating table:', err.message);
-    } else {
-      console.log('Database table ready.');
-    }
-  });
-}
 
 // API Routes
 
-// Get all barcodes
-app.get('/api/barcodes', (req, res) => {
-  db.all('SELECT * FROM barcodes ORDER BY scanned_at DESC', [], (err, rows) => {
+// Get book by code
+app.get('/api/books/code/:code', (req, res) => {
+  const code = req.params.code;
+  const query = `
+    SELECT b.*, 
+           CASE WHEN b.status = 'checked_out' THEN u.name ELSE NULL END as checked_out_to,
+           CASE WHEN b.status = 'checked_out' THEN u.code ELSE NULL END as checked_out_to_code
+    FROM books b
+    LEFT JOIN checkouts c ON b.id = c.book_id AND c.status = 'checked_out'
+    LEFT JOIN users u ON c.user_id = u.id
+    WHERE b.code = ?
+  `;
+  
+  db.get(query, [code], (err, row) => {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
     }
-    res.json({ barcodes: rows });
+    if (!row) {
+      res.status(404).json({ error: 'Book not found' });
+      return;
+    }
+    res.json({ book: row });
   });
 });
 
-// Check if barcode exists
-app.get('/api/barcodes/:barcode', (req, res) => {
-  const barcode = req.params.barcode;
-  db.get('SELECT * FROM barcodes WHERE barcode = ?', [barcode], (err, row) => {
+// Get user by code
+app.get('/api/users/code/:code', (req, res) => {
+  const code = req.params.code;
+  db.get('SELECT * FROM users WHERE code = ?', [code], (err, row) => {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
     }
-    res.json({ exists: !!row, barcode: row });
+    if (!row) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    res.json({ user: row });
   });
 });
 
-// Add a new barcode
-app.post('/api/barcodes', (req, res) => {
-  const { employee_badge, barcode, notes } = req.body;
+// Checkout a book
+app.post('/api/checkouts', (req, res) => {
+  const { book_code, user_code, due_days } = req.body;
   
-  if (!employee_badge) {
-    res.status(400).json({ error: 'Employee badge is required' });
-    return;
-  }
-  
-  if (!barcode) {
-    res.status(400).json({ error: 'Barcode is required' });
+  if (!book_code || !user_code) {
+    res.status(400).json({ error: 'Book code and user code are required' });
     return;
   }
 
-  db.run(
-    'INSERT INTO barcodes (employee_badge, barcode, notes) VALUES (?, ?, ?)',
-    [employee_badge, barcode, notes || ''],
-    function(err) {
+  // Find book and user
+  db.get('SELECT * FROM books WHERE code = ?', [book_code], (err, book) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    if (!book) {
+      res.status(404).json({ error: 'Book not found' });
+      return;
+    }
+    if (book.status !== 'available') {
+      res.status(400).json({ error: 'Book is not available' });
+      return;
+    }
+
+    db.get('SELECT * FROM users WHERE code = ?', [user_code], (err, user) => {
       if (err) {
         res.status(500).json({ error: err.message });
         return;
       }
-      res.json({
-        id: this.lastID,
-        employee_badge: employee_badge,
-        barcode: barcode,
-        message: 'Barcode added successfully'
-      });
-    }
-  );
+      if (!user) {
+        res.status(404).json({ error: 'User not found' });
+        return;
+      }
+
+      // Calculate due date
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + (due_days || 14));
+
+      // Create checkout record
+      db.run(
+        'INSERT INTO checkouts (book_id, user_id, due_date, status) VALUES (?, ?, ?, ?)',
+        [book.id, user.id, dueDate.toISOString(), 'checked_out'],
+        function(err) {
+          if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+          }
+
+          // Update book status
+          db.run(
+            'UPDATE books SET status = ? WHERE id = ?',
+            ['checked_out', book.id],
+            (err) => {
+              if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+              }
+              res.json({
+                id: this.lastID,
+                message: 'Book checked out successfully',
+                book: book.title,
+                user: user.name,
+                due_date: dueDate
+              });
+            }
+          );
+        }
+      );
+    });
+  });
 });
 
-// Delete a barcode
-app.delete('/api/barcodes/:id', (req, res) => {
-  const id = req.params.id;
-  db.run('DELETE FROM barcodes WHERE id = ?', [id], function(err) {
+// Return a book
+app.post('/api/checkouts/return', (req, res) => {
+  const { book_code } = req.body;
+  
+  if (!book_code) {
+    res.status(400).json({ error: 'Book code is required' });
+    return;
+  }
+
+  // Find book
+  db.get('SELECT * FROM books WHERE code = ?', [book_code], (err, book) => {
     if (err) {
       res.status(500).json({ error: err.message });
       return;
     }
-    res.json({ message: 'Barcode deleted successfully', changes: this.changes });
+    if (!book) {
+      res.status(404).json({ error: 'Book not found' });
+      return;
+    }
+    if (book.status !== 'checked_out') {
+      res.status(400).json({ error: 'Book is not checked out' });
+      return;
+    }
+
+    // Find active checkout
+    db.get(
+      'SELECT * FROM checkouts WHERE book_id = ? AND status = ?',
+      [book.id, 'checked_out'],
+      (err, checkout) => {
+        if (err) {
+          res.status(500).json({ error: err.message });
+          return;
+        }
+        if (!checkout) {
+          res.status(404).json({ error: 'Checkout record not found' });
+          return;
+        }
+
+        // Update checkout record
+        db.run(
+          'UPDATE checkouts SET return_date = ?, status = ? WHERE id = ?',
+          [new Date().toISOString(), 'returned', checkout.id],
+          (err) => {
+            if (err) {
+              res.status(500).json({ error: err.message });
+              return;
+            }
+
+            // Update book status
+            db.run(
+              'UPDATE books SET status = ? WHERE id = ?',
+              ['available', book.id],
+              (err) => {
+                if (err) {
+                  res.status(500).json({ error: err.message });
+                  return;
+                }
+                res.json({
+                  message: 'Book returned successfully',
+                  book: book.title
+                });
+              }
+            );
+          }
+        );
+      }
+    );
+  });
+});
+
+// Get active checkouts
+app.get('/api/checkouts/active', (req, res) => {
+  const query = `
+    SELECT c.*, b.title, b.author, b.code as book_code, u.name as user_name, u.code as user_code
+    FROM checkouts c
+    JOIN books b ON c.book_id = b.id
+    JOIN users u ON c.user_id = u.id
+    WHERE c.status = 'checked_out'
+    ORDER BY c.due_date ASC
+  `;
+  
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    res.json({ checkouts: rows });
   });
 });
 

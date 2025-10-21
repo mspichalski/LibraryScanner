@@ -6,149 +6,130 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #000;
+  color: #fff;
   min-height: 100vh;
-  padding: 20px;
-  color: #333;
+  padding: 0;
 }
 
 .container {
-  max-width: 800px;
-  margin: 0 auto;
-}
-
-header {
-  text-align: center;
-  color: white;
-  margin-bottom: 30px;
-}
-
-header h1 {
-  font-size: 2.5rem;
-  margin-bottom: 10px;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.subtitle {
-  font-size: 1.1rem;
-  opacity: 0.9;
+  max-width: 100%;
+  height: 100vh;
+  margin: 0;
+  background: #000;
+  display: flex;
+  flex-direction: column;
 }
 
 main {
-  background: white;
-  border-radius: 20px;
-  padding: 30px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
 }
 
+/* Scanner Section */
 .scanner-section {
-  margin-bottom: 40px;
+  margin-bottom: 30px;
 }
 
 .scanner-box {
-  width: 100%;
-  max-width: 500px;
-  margin: 0 auto 20px;
-  border-radius: 10px;
+  background: #1a1a1a;
+  border: 2px solid #333;
+  border-radius: 12px;
   overflow: hidden;
-  background: #f5f5f5;
-}
-
-#reader {
+  margin-bottom: 20px;
   min-height: 300px;
 }
 
 .scanner-controls {
   display: flex;
-  gap: 10px;
+  gap: 15px;
   justify-content: center;
   margin-bottom: 15px;
 }
 
+/* Buttons */
 .btn {
-  padding: 15px 30px;
+  padding: 14px 28px;
+  border: none;
+  border-radius: 8px;
   font-size: 1rem;
   font-weight: 600;
-  border: none;
-  border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-}
-
-.btn:active {
-  transform: translateY(0);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .btn-primary {
-  background: #667eea;
-  color: white;
+  background: #fff;
+  color: #000;
 }
 
 .btn-primary:hover {
-  background: #5568d3;
+  background: #e0e0e0;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3);
 }
 
 .btn-secondary {
-  background: #e74c3c;
-  color: white;
+  background: #333;
+  color: #fff;
+  border: 1px solid #666;
 }
 
 .btn-secondary:hover {
-  background: #c0392b;
+  background: #444;
+  transform: translateY(-2px);
 }
 
-.btn-success {
-  background: #27ae60;
-  color: white;
-  flex: 1;
-}
-
-.btn-success:hover {
-  background: #229954;
-}
-
-.btn-danger {
-  background: #e74c3c;
-  color: white;
-  flex: 1;
-}
-
-.btn-danger:hover {
-  background: #c0392b;
-}
-
+/* Status Message */
 .status-message {
-  text-align: center;
-  padding: 10px;
+  padding: 15px 20px;
   border-radius: 8px;
+  font-size: 1rem;
   font-weight: 500;
-}
-
-.status-message.success {
-  background: #d4edda;
-  color: #155724;
-}
-
-.status-message.error {
-  background: #f8d7da;
-  color: #721c24;
+  text-align: center;
+  display: none;
+  margin: 15px 0;
+  border: 2px solid;
 }
 
 .status-message.info {
-  background: #d1ecf1;
-  color: #0c5460;
+  background: #1a1a2e;
+  color: #4299e1;
+  border-color: #2c5282;
+}
+
+.status-message.success {
+  background: #1a2e1a;
+  color: #48bb78;
+  border-color: #2f855a;
+}
+
+.status-message.error {
+  background: #2e1a1a;
+  color: #f56565;
+  border-color: #c53030;
+}
+
+.status-message.warning {
+  background: #2e2a1a;
+  color: #ed8936;
+  border-color: #c05621;
+}
+
+/* Scans Section */
+.scans-section {
+  margin-top: 30px;
 }
 
 .scans-section h2 {
-  margin-bottom: 20px;
-  color: #667eea;
   font-size: 1.5rem;
+  margin-bottom: 20px;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .scans-list {
@@ -157,197 +138,111 @@ main {
   gap: 15px;
 }
 
-.empty-state {
-  text-align: center;
-  color: #999;
-  padding: 40px;
-  font-style: italic;
-}
-
 .scan-item {
-  background: #f8f9fa;
-  padding: 15px;
-  border-radius: 10px;
-  border-left: 4px solid #667eea;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 20px;
   transition: all 0.3s ease;
 }
 
 .scan-item:hover {
-  background: #e9ecef;
-  transform: translateX(5px);
+  border-color: #666;
+  background: #222;
 }
 
 .scan-info {
-  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .scan-barcode {
+  font-size: 1rem;
+  color: #ddd;
+}
+
+.scan-barcode strong {
+  color: #fff;
   font-weight: 600;
-  font-size: 1.1rem;
-  color: #333;
-  margin-bottom: 5px;
 }
 
 .scan-time {
-  font-size: 0.85rem;
-  color: #666;
+  font-size: 0.9rem;
+  color: #888;
+}
+
+.scan-time strong {
+  color: #aaa;
+}
+
+.scan-time.overdue {
+  color: #f56565;
+  font-weight: 700;
+}
+
+.scan-time.overdue strong {
+  color: #f56565;
 }
 
 .scan-notes {
-  margin-top: 8px;
   font-size: 0.9rem;
-  color: #555;
+  color: #aaa;
   font-style: italic;
-}
-
-.delete-btn {
-  background: #e74c3c;
-  color: white;
-  border: none;
-  padding: 8px 15px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  transition: all 0.3s ease;
-}
-
-.delete-btn:hover {
-  background: #c0392b;
-}
-
-/* Modal Styles */
-.modal {
-  display: none;
-  position: fixed;
-  z-index: 1000;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(5px);
-  animation: fadeIn 0.3s ease;
-}
-
-.modal.show {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.modal-content {
-  background: white;
-  padding: 30px;
-  border-radius: 15px;
-  max-width: 90%;
-  width: 400px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-  animation: slideUp 0.3s ease;
-}
-
-@keyframes slideUp {
-  from {
-    transform: translateY(50px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.modal-content h2 {
-  margin-bottom: 20px;
-  color: #667eea;
-  text-align: center;
-}
-
-.barcode-display {
-  background: #f8f9fa;
-  padding: 15px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  text-align: center;
-  word-break: break-all;
-}
-
-.barcode-display span {
-  display: block;
   margin-top: 8px;
-  font-size: 1.2rem;
-  color: #333;
-  font-family: 'Courier New', monospace;
+  padding-top: 8px;
+  border-top: 1px solid #333;
 }
 
-.form-group {
-  margin-bottom: 20px;
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+  font-size: 1.1rem;
 }
 
-.form-group label {
-  display: block;
-  margin-bottom: 8px;
-  font-weight: 600;
-  color: #555;
-}
-
-.form-group textarea {
-  width: 100%;
-  padding: 10px;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  font-family: inherit;
-  font-size: 1rem;
-  resize: vertical;
-  transition: border-color 0.3s ease;
-}
-
-.form-group textarea:focus {
-  outline: none;
-  border-color: #667eea;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 10px;
-}
-
-/* Responsive Design */
-@media (max-width: 600px) {
-  body {
-    padding: 10px;
-  }
-
-  header h1 {
-    font-size: 2rem;
-  }
-
+/* Responsive */
+@media (max-width: 768px) {
   main {
-    padding: 20px;
-  }
-
-  .btn {
-    padding: 12px 20px;
-    font-size: 0.95rem;
+    padding: 15px;
   }
 
   .scanner-controls {
     flex-direction: column;
   }
 
-  .modal-content {
-    padding: 20px;
+  .btn {
+    width: 100%;
   }
 }
 
+/* Html5Qrcode overrides for black theme */
+#reader {
+  background: #000 !important;
+}
+
+#reader video {
+  border-radius: 8px;
+}
+
+#reader__scan_region {
+  background: #000 !important;
+}
+
+#reader__dashboard_section {
+  background: #1a1a1a !important;
+  color: #fff !important;
+}
+
+#reader__dashboard_section button {
+  background: #333 !important;
+  color: #fff !important;
+  border: 1px solid #666 !important;
+}
+
+#reader__dashboard_section select {
+  background: #222 !important;
+  color: #fff !important;
+  border: 1px solid #666 !important;
+}
