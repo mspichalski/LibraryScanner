@@ -22,13 +22,73 @@ confirmNo.addEventListener('click', closeModal);
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
   loadRecentScans();
+  checkCameraSupport();
 });
+
+// Check camera support and show warnings
+function checkCameraSupport() {
+  const isSecureContext = window.isSecureContext;
+  const isLocalhost = window.location.hostname === 'localhost' || 
+                     window.location.hostname === '127.0.0.1';
+  
+  if (!isSecureContext && !isLocalhost) {
+    const warning = document.createElement('div');
+    warning.className = 'status-message error';
+    warning.style.display = 'block';
+    warning.style.marginBottom = '15px';
+    warning.innerHTML = `
+      <strong>⚠️ HTTPS Required</strong><br>
+      Camera access requires HTTPS on non-localhost connections.<br>
+      <small>Access via <code>localhost</code> on this device, or set up HTTPS.</small>
+    `;
+    document.querySelector('.scanner-section').insertBefore(
+      warning, 
+      document.getElementById('reader')
+    );
+  }
+  
+  // Check if getUserMedia is available
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    const warning = document.createElement('div');
+    warning.className = 'status-message error';
+    warning.style.display = 'block';
+    warning.style.marginBottom = '15px';
+    warning.innerHTML = `
+      <strong>⚠️ Camera Not Supported</strong><br>
+      Your browser doesn't support camera access.
+    `;
+    document.querySelector('.scanner-section').insertBefore(
+      warning, 
+      document.getElementById('reader')
+    );
+  }
+}
 
 // Start the barcode scanner
 async function startScanner() {
   try {
+    // Check if we're on HTTPS or localhost
+    const isSecureContext = window.isSecureContext;
+    const isLocalhost = window.location.hostname === 'localhost' || 
+                       window.location.hostname === '127.0.0.1';
+    
+    if (!isSecureContext && !isLocalhost) {
+      showStatus('⚠️ Camera requires HTTPS! Please see console for instructions.', 'error');
+      console.error('🔒 HTTPS Required for Camera Access');
+      console.log('📱 Solutions:');
+      console.log('1. Access via localhost on the same device');
+      console.log('2. Use HTTPS (see server.js for setup)');
+      console.log('3. For testing, use Chrome with flag: chrome://flags/#unsafely-treat-insecure-origin-as-secure');
+      console.log('   Add your server IP to the list');
+      startBtn.style.display = 'inline-block';
+      stopBtn.style.display = 'none';
+      return;
+    }
+    
     startBtn.style.display = 'none';
     stopBtn.style.display = 'inline-block';
+    
+    showStatus('Requesting camera access...', 'info');
     
     html5QrcodeScanner = new Html5Qrcode("reader");
     
@@ -46,10 +106,25 @@ async function startScanner() {
     );
     
     isScanning = true;
-    showStatus('Scanner started. Point camera at a barcode.', 'info');
+    showStatus('✓ Scanner started. Point camera at a barcode.', 'info');
   } catch (err) {
     console.error('Error starting scanner:', err);
-    showStatus('Error starting scanner. Please check camera permissions.', 'error');
+    
+    let errorMsg = 'Error starting scanner.';
+    
+    if (err.toString().includes('NotAllowedError') || err.toString().includes('Permission')) {
+      errorMsg = '❌ Camera permission denied. Please allow camera access in your browser settings.';
+    } else if (err.toString().includes('NotFoundError')) {
+      errorMsg = '❌ No camera found on this device.';
+    } else if (err.toString().includes('NotReadableError')) {
+      errorMsg = '❌ Camera is already in use by another app.';
+    } else if (err.toString().includes('OverconstrainedError')) {
+      errorMsg = '❌ Camera constraints not supported.';
+    } else if (err.toString().includes('TypeError')) {
+      errorMsg = '❌ Camera not available. Check HTTPS requirement.';
+    }
+    
+    showStatus(errorMsg, 'error');
     startBtn.style.display = 'inline-block';
     stopBtn.style.display = 'none';
   }

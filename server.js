@@ -2,9 +2,13 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const bodyParser = require('body-parser');
 const path = require('path');
+const https = require('https');
+const http = require('http');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const HTTPS_PORT = process.env.HTTPS_PORT || 3443;
 
 // Middleware
 app.use(bodyParser.json());
@@ -110,11 +114,36 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
-  console.log(`Access from your phone using your computer's IP address on port ${PORT}`);
-});
+// Check for SSL certificates
+const keyPath = path.join(__dirname, 'server.key');
+const certPath = path.join(__dirname, 'server.cert');
+
+let server;
+
+if (fs.existsSync(keyPath) && fs.existsSync(certPath)) {
+  // HTTPS mode
+  const httpsOptions = {
+    key: fs.readFileSync(keyPath),
+    cert: fs.readFileSync(certPath)
+  };
+  
+  server = https.createServer(httpsOptions, app);
+  server.listen(HTTPS_PORT, () => {
+    console.log(`✓ HTTPS Server running on https://localhost:${HTTPS_PORT}`);
+    console.log(`📱 Access from your phone: https://YOUR_IP:${HTTPS_PORT}`);
+    console.log(`🔒 HTTPS enabled - camera access will work from mobile devices!`);
+    console.log(`⚠️  You may need to accept the security warning for self-signed certificates`);
+  });
+} else {
+  // HTTP mode
+  server = http.createServer(app);
+  server.listen(PORT, () => {
+    console.log(`✓ HTTP Server running on http://localhost:${PORT}`);
+    console.log(`📱 Access from your phone: http://YOUR_IP:${PORT}`);
+    console.log(`⚠️  Camera access requires HTTPS for non-localhost connections`);
+    console.log(`📖 See CAMERA_SETUP.md for instructions on enabling HTTPS`);
+  });
+}
 
 // Graceful shutdown
 process.on('SIGINT', () => {

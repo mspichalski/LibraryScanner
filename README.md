@@ -42,6 +42,15 @@ npm start
 6. Click "Yes, Add It" to save to the database
 7. View all scanned items in the "Recent Scans" section
 
+## ⚠️ Camera Not Working?
+
+Modern browsers require **HTTPS** for camera access (except on localhost).
+
+**Quick Solutions:**
+- **Test locally first**: Open `http://localhost:3000` on the server machine
+- **Enable HTTPS**: See [CAMERA_SETUP.md](CAMERA_SETUP.md) for detailed instructions
+- **Use ngrok**: Instant HTTPS tunnel (easiest for phone testing)
+
 ## Finding Your Computer's IP Address
 
 ### macOS:
