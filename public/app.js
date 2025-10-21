@@ -1,6 +1,8 @@
 let html5QrcodeScanner = null;
 let isScanning = false;
 let lastScannedBarcode = null;
+let scanningStep = 'employee'; // 'employee' or 'book'
+let employeeBadge = null;
 
 // DOM Elements
 const startBtn = document.getElementById('startBtn');
@@ -106,7 +108,10 @@ async function startScanner() {
     );
     
     isScanning = true;
-    showStatus('✓ Scanner started. Point camera at a barcode.', 'info');
+    const stepMessage = scanningStep === 'employee' 
+      ? '✓ Scanner started. Please scan EMPLOYEE BADGE.' 
+      : '✓ Scanner started. Please scan BOOK CODE.';
+    showStatus(stepMessage, 'info');
   } catch (err) {
     console.error('Error starting scanner:', err);
     
@@ -139,6 +144,11 @@ async function stopScanner() {
       html5QrcodeScanner = null;
       isScanning = false;
       
+      // Reset scanning state
+      scanningStep = 'employee';
+      employeeBadge = null;
+      lastScannedBarcode = null;
+      
       startBtn.style.display = 'inline-block';
       stopBtn.style.display = 'none';
       showStatus('Scanner stopped.', 'info');
@@ -157,16 +167,39 @@ function onScanSuccess(decodedText, decodedResult) {
   
   lastScannedBarcode = decodedText;
   
-  // Stop scanner temporarily to show modal
-  if (isScanning) {
-    stopScanner();
+  if (scanningStep === 'employee') {
+    // First step: Employee badge scanned
+    employeeBadge = decodedText;
+    playBeep();
+    
+    // Stop scanner temporarily
+    if (isScanning) {
+      stopScanner();
+    }
+    
+    showStatus(`✓ Employee badge scanned: ${decodedText}`, 'success');
+    
+    // Move to next step
+    scanningStep = 'book';
+    
+    // Auto-restart scanner for book code after a short delay
+    setTimeout(() => {
+      lastScannedBarcode = null;
+      startScanner();
+    }, 1500);
+    
+  } else {
+    // Second step: Book code scanned
+    playBeep();
+    
+    // Stop scanner temporarily to show modal
+    if (isScanning) {
+      stopScanner();
+    }
+    
+    // Show confirmation modal with both values
+    showConfirmationModal(employeeBadge, decodedText);
   }
-  
-  // Show confirmation modal
-  showConfirmationModal(decodedText);
-  
-  // Play a beep sound (optional - works on most browsers)
-  playBeep();
 }
 
 // Handle scan errors (silent - just for logging)
@@ -175,8 +208,9 @@ function onScanError(errorMessage) {
 }
 
 // Show confirmation modal
-function showConfirmationModal(barcode) {
-  modalBarcode.textContent = barcode;
+function showConfirmationModal(employeeBadgeValue, bookCode) {
+  document.getElementById('modalEmployeeBadge').textContent = employeeBadgeValue;
+  document.getElementById('modalBarcode').textContent = bookCode;
   notesInput.value = '';
   confirmModal.classList.add('show');
 }
@@ -185,12 +219,18 @@ function showConfirmationModal(barcode) {
 function closeModal() {
   confirmModal.classList.remove('show');
   lastScannedBarcode = null;
-  showStatus('Scan cancelled.', 'info');
+  
+  // Reset to first step
+  scanningStep = 'employee';
+  employeeBadge = null;
+  
+  showStatus('Scan cancelled. Ready to scan employee badge.', 'info');
 }
 
 // Add barcode to database
 async function addBarcodeToDatabase() {
-  const barcode = modalBarcode.textContent;
+  const employee_badge = document.getElementById('modalEmployeeBadge').textContent;
+  const barcode = document.getElementById('modalBarcode').textContent;
   const notes = notesInput.value.trim();
   
   try {
@@ -199,17 +239,14 @@ async function addBarcodeToDatabase() {
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ barcode, notes })
+      body: JSON.stringify({ employee_badge, barcode, notes })
     });
     
     const data = await response.json();
     
     if (response.ok) {
-      showStatus(`✓ Barcode ${barcode} added successfully!`, 'success');
+      showStatus(`✓ Book ${barcode} added for employee ${employee_badge}!`, 'success');
       loadRecentScans();
-      closeModal();
-    } else if (response.status === 409) {
-      showStatus(`Barcode already exists in database!`, 'error');
       closeModal();
     } else {
       showStatus(`Error: ${data.error}`, 'error');
@@ -220,9 +257,9 @@ async function addBarcodeToDatabase() {
   }
   
   // Reset for next scan
-  setTimeout(() => {
-    lastScannedBarcode = null;
-  }, 1000);
+  scanningStep = 'employee';
+  employeeBadge = null;
+  lastScannedBarcode = null;
 }
 
 // Load recent scans from database
@@ -247,7 +284,8 @@ function displayScans(barcodes) {
   scansList.innerHTML = barcodes.map(item => `
     <div class="scan-item">
       <div class="scan-info">
-        <div class="scan-barcode">${item.barcode}</div>
+        <div class="scan-barcode"><strong>Employee:</strong> ${item.employee_badge}</div>
+        <div class="scan-barcode"><strong>Book:</strong> ${item.barcode}</div>
         <div class="scan-time">${formatDate(item.scanned_at)}</div>
         ${item.notes ? `<div class="scan-notes">${item.notes}</div>` : ''}
       </div>

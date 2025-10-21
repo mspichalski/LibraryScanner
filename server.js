@@ -29,7 +29,8 @@ function initDatabase() {
   db.run(`
     CREATE TABLE IF NOT EXISTS barcodes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      barcode TEXT UNIQUE NOT NULL,
+      employee_badge TEXT NOT NULL,
+      barcode TEXT NOT NULL,
       scanned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       notes TEXT
     )
@@ -69,7 +70,12 @@ app.get('/api/barcodes/:barcode', (req, res) => {
 
 // Add a new barcode
 app.post('/api/barcodes', (req, res) => {
-  const { barcode, notes } = req.body;
+  const { employee_badge, barcode, notes } = req.body;
+  
+  if (!employee_badge) {
+    res.status(400).json({ error: 'Employee badge is required' });
+    return;
+  }
   
   if (!barcode) {
     res.status(400).json({ error: 'Barcode is required' });
@@ -77,19 +83,16 @@ app.post('/api/barcodes', (req, res) => {
   }
 
   db.run(
-    'INSERT INTO barcodes (barcode, notes) VALUES (?, ?)',
-    [barcode, notes || ''],
+    'INSERT INTO barcodes (employee_badge, barcode, notes) VALUES (?, ?, ?)',
+    [employee_badge, barcode, notes || ''],
     function(err) {
       if (err) {
-        if (err.message.includes('UNIQUE constraint failed')) {
-          res.status(409).json({ error: 'Barcode already exists in database' });
-        } else {
-          res.status(500).json({ error: err.message });
-        }
+        res.status(500).json({ error: err.message });
         return;
       }
       res.json({
         id: this.lastID,
+        employee_badge: employee_badge,
         barcode: barcode,
         message: 'Barcode added successfully'
       });
