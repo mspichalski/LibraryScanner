@@ -136,7 +136,7 @@ async function startScanner() {
 }
 
 // Stop the barcode scanner
-async function stopScanner() {
+async function stopScanner(resetState = true) {
   if (html5QrcodeScanner && isScanning) {
     try {
       await html5QrcodeScanner.stop();
@@ -144,14 +144,19 @@ async function stopScanner() {
       html5QrcodeScanner = null;
       isScanning = false;
       
-      // Reset scanning state
-      scanningStep = 'employee';
-      employeeBadge = null;
-      lastScannedBarcode = null;
+      // Only reset scanning state if explicitly requested (e.g., manual stop)
+      if (resetState) {
+        scanningStep = 'employee';
+        employeeBadge = null;
+        lastScannedBarcode = null;
+      }
       
       startBtn.style.display = 'inline-block';
       stopBtn.style.display = 'none';
-      showStatus('Scanner stopped.', 'info');
+      
+      if (resetState) {
+        showStatus('Scanner stopped.', 'info');
+      }
     } catch (err) {
       console.error('Error stopping scanner:', err);
     }
@@ -172,9 +177,9 @@ function onScanSuccess(decodedText, decodedResult) {
     employeeBadge = decodedText;
     playBeep();
     
-    // Stop scanner temporarily
+    // Stop scanner temporarily (without resetting state)
     if (isScanning) {
-      stopScanner();
+      stopScanner(false);
     }
     
     showStatus(`✓ Employee badge scanned: ${decodedText}`, 'success');
@@ -192,9 +197,9 @@ function onScanSuccess(decodedText, decodedResult) {
     // Second step: Book code scanned
     playBeep();
     
-    // Stop scanner temporarily to show modal
+    // Stop scanner temporarily to show modal (without resetting state yet)
     if (isScanning) {
-      stopScanner();
+      stopScanner(false);
     }
     
     // Show confirmation modal with both values
