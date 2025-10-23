@@ -12,19 +12,13 @@
     <main>
       <!-- Scanner Section -->
       <div class="scanner-section">
-        <div id="reader" class="scanner-box"></div>
+        <div class="scanner-wrapper">
+          <div id="reader" class="scanner-box"></div>
+          <div id="scanStatus" class="status-overlay"></div>
+        </div>
         <div class="scanner-controls">
           <button id="startBtn" class="btn btn-primary">Start Scanner</button>
           <button id="stopBtn" class="btn btn-secondary" style="display: none;">Stop Scanner</button>
-        </div>
-        <div id="scanStatus" class="status-message"></div>
-      </div>
-
-      <!-- Active Checkouts Section -->
-      <div class="scans-section">
-        <h2>Currently Checked Out</h2>
-        <div id="scansList" class="scans-list">
-          <p class="empty-state">No books currently checked out</p>
         </div>
       </div>
     </main>

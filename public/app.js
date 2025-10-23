@@ -8,7 +8,6 @@ let currentBook = null;
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
 const scanStatus = document.getElementById('scanStatus');
-const scansList = document.getElementById('scansList');
 
 // Event Listeners
 startBtn.addEventListener('click', startScanner);
@@ -16,7 +15,6 @@ stopBtn.addEventListener('click', stopScanner);
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
-  loadActiveCheckouts();
   checkCameraSupport();
 });
 
@@ -277,7 +275,6 @@ async function checkoutBook(bookCode, userCode, userName) {
     
     if (response.ok) {
       showStatus(`✓ SUCCESS: "${currentBook.title}" checked out to ${userName}!`, 'success');
-      loadActiveCheckouts();
       resetToBookScan();
     } else {
       showStatus(`❌ Error: ${data.error}`, 'error');
@@ -303,7 +300,6 @@ async function returnBook(bookCode, userName) {
     
     if (response.ok) {
       showStatus(`✓ SUCCESS: "${currentBook.title}" returned by ${userName}!`, 'success');
-      loadActiveCheckouts();
       resetToBookScan();
     } else {
       showStatus(`❌ Error: ${data.error}`, 'error');
@@ -326,61 +322,16 @@ function resetToBookScan() {
   }, 3000);
 }
 
-// Load active checkouts from database
-async function loadActiveCheckouts() {
-  try {
-    const response = await fetch('/api/checkouts/active');
-    const data = await response.json();
-    
-    if (data.checkouts && data.checkouts.length > 0) {
-      displayCheckouts(data.checkouts);
-    } else {
-      scansList.innerHTML = '<p class="empty-state">No books currently checked out</p>';
-    }
-  } catch (err) {
-    console.error('Error loading checkouts:', err);
-    scansList.innerHTML = '<p class="empty-state">Error loading checkouts</p>';
-  }
-}
-
-// Display checkouts in the list
-function displayCheckouts(checkouts) {
-  scansList.innerHTML = checkouts.map(item => {
-    const dueDate = new Date(item.due_date);
-    const isOverdue = dueDate < new Date();
-    
-    return `
-      <div class="scan-item">
-        <div class="scan-info">
-          <div class="scan-barcode"><strong>Book:</strong> ${item.title} by ${item.author}</div>
-          <div class="scan-barcode"><strong>Code:</strong> ${item.book_code}</div>
-          <div class="scan-barcode"><strong>User:</strong> ${item.user_name} (${item.user_code})</div>
-          <div class="scan-time ${isOverdue ? 'overdue' : ''}">
-            <strong>Due:</strong> ${formatDate(item.due_date)} ${isOverdue ? '(OVERDUE)' : ''}
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
-}
-
 // Show status message
 function showStatus(message, type) {
   scanStatus.textContent = message;
-  scanStatus.className = `status-message ${type}`;
+  scanStatus.className = `status-overlay ${type}`;
   scanStatus.style.display = 'block';
-}
-
-// Format date for display
-function formatDate(dateString) {
-  const date = new Date(dateString);
-  return date.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  
+  // Auto-hide after 5 seconds
+  setTimeout(() => {
+    scanStatus.style.display = 'none';
+  }, 5000);
 }
 
 // Play beep sound on successful scan

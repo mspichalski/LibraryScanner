@@ -32,12 +32,16 @@ main {
   margin-bottom: 30px;
 }
 
+.scanner-wrapper {
+  position: relative;
+  margin-bottom: 20px;
+}
+
 .scanner-box {
   background: #1a1a1a;
   border: 2px solid #333;
   border-radius: 12px;
   overflow: hidden;
-  margin-bottom: 20px;
   min-height: 500px;
 }
 
@@ -83,115 +87,58 @@ main {
   transform: translateY(-2px);
 }
 
-/* Status Message */
-.status-message {
+/* Status Overlay */
+.status-overlay {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  right: 20px;
   padding: 15px 20px;
   border-radius: 8px;
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: 600;
   text-align: center;
   display: none;
-  margin: 15px 0;
   border: 2px solid;
+  z-index: 100;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  animation: slideUp 0.3s ease;
 }
 
-.status-message.info {
-  background: #1a1a2e;
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.status-overlay.info {
+  background: rgba(26, 26, 46, 0.95);
   color: #4299e1;
   border-color: #2c5282;
 }
 
-.status-message.success {
-  background: #1a2e1a;
+.status-overlay.success {
+  background: rgba(26, 46, 26, 0.95);
   color: #48bb78;
   border-color: #2f855a;
 }
 
-.status-message.error {
-  background: #2e1a1a;
+.status-overlay.error {
+  background: rgba(46, 26, 26, 0.95);
   color: #f56565;
   border-color: #c53030;
 }
 
-.status-message.warning {
-  background: #2e2a1a;
+.status-overlay.warning {
+  background: rgba(46, 42, 26, 0.95);
   color: #ed8936;
   border-color: #c05621;
-}
-
-/* Scans Section */
-.scans-section {
-  margin-top: 30px;
-}
-
-.scans-section h2 {
-  font-size: 1.5rem;
-  margin-bottom: 20px;
-  color: #fff;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-.scans-list {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-.scan-item {
-  background: #1a1a1a;
-  border: 1px solid #333;
-  border-radius: 8px;
-  padding: 20px;
-  transition: all 0.3s ease;
-}
-
-.scan-item:hover {
-  border-color: #666;
-  background: #222;
-}
-
-.scan-info {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.scan-barcode {
-  font-size: 1rem;
-  color: #ddd;
-}
-
-.scan-barcode strong {
-  color: #fff;
-  font-weight: 600;
-}
-
-.scan-time {
-  font-size: 0.9rem;
-  color: #888;
-}
-
-.scan-time strong {
-  color: #aaa;
-}
-
-.scan-time.overdue {
-  color: #f56565;
-  font-weight: 700;
-}
-
-.scan-time.overdue strong {
-  color: #f56565;
-}
-
-.scan-notes {
-  font-size: 0.9rem;
-  color: #aaa;
-  font-style: italic;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid #333;
 }
 
 /* Empty State */
@@ -214,6 +161,14 @@ main {
 
   .btn {
     width: 100%;
+  }
+
+  .status-overlay {
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    font-size: 0.9rem;
+    padding: 12px 15px;
   }
 }
 

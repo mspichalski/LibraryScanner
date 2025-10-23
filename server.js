@@ -211,26 +211,6 @@ app.post('/api/checkouts/return', (req, res) => {
   });
 });
 
-// Get active checkouts
-app.get('/api/checkouts/active', (req, res) => {
-  const query = `
-    SELECT c.*, b.title, b.author, b.code as book_code, u.name as user_name, u.code as user_code
-    FROM checkouts c
-    JOIN books b ON c.book_id = b.id
-    JOIN users u ON c.user_id = u.id
-    WHERE c.status = 'checked_out'
-    ORDER BY c.due_date ASC
-  `;
-  
-  db.all(query, [], (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
-    res.json({ checkouts: rows });
-  });
-});
-
 // Serve the main page
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
